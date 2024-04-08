@@ -1,0 +1,75 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages #
+############
+# It's better to unpack these files and commit the raw source because binaries can cause conflicts.
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor folders #
+##########################
+.vscode/
+.idea/
+*.swp
+*~
+*.sublime-workspace
+*.sublime-project
+
+# Node.js dependencies #
+########################
+node_modules/
+
+# Python bytecode #
+####################
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Java build files #
+####################
+target/
+
+# Others #
+#########
+.env
+.env.local
+.env.*.local
+*.tmp
+*.temp
+aeslib.txt
+extract
+histogram
+
+#subrepos
+cs.7292.hwsecurity.lab2.FR.CC/
+histogram-generator/
+
