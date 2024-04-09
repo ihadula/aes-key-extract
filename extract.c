@@ -117,12 +117,14 @@ int main(int argc, char **argv) {
 
         printf("... TESTING ADDRESS %lx ...\n", test_addr);
         clflush(test_addr);
+        AES_encrypt(plaintxt, ciphertxt, &enc_key);
         CYCLES acc_time = maccess_t(test_addr);
         if (acc_time < CACHE_MISS) {
-          printf(GREEN "        HIT" RESET "\n");
+          printf(GREEN "        HIT " RESET "%lu\n", acc_time);
         } else {
-          printf(RED "        MISS" RESET "\n");
+          printf(RED "        MISS " RESET "%lu\n", acc_time);
         }
+
       }
       
   }
