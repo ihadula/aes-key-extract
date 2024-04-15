@@ -45,7 +45,7 @@ CYCLES maccess_t(ADDR_PTR addr)
   //Serialize instruction stream with lfence instructions
 
   CYCLES cycles;
-  CYCLES new;
+  CYCLES new_time;
   CYCLES old;
 
   //prev timestamp now in temp
@@ -65,10 +65,10 @@ CYCLES maccess_t(ADDR_PTR addr)
       : /*clobbers*/ "memory" );
 
   //newer timestamp in cycles
-  new = rdtscp();
+  new_time = rdtscp();
 
   //overflow protection
-  cycles = ((int64_t) new) - ((int64_t) old);
+  cycles = ((int64_t) new_time) - ((int64_t) old);
 
   return cycles;
 }
@@ -128,7 +128,7 @@ char *string_to_binary(char *s)
     size_t len = strlen(s) ;
 
     // Each char is one byte (8 bits) and + 1 at the end for null terminator
-    char *binary = malloc(len * 8 + 1);
+    char *binary = (char *) malloc(len * 8 + 1);
     binary[0] = '\0';
 	
     for (size_t i = 0; i < len; ++i) {
