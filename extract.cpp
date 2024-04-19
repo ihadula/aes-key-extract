@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <algorithm>
+#include <utility> 
 
 extern "C" {
   #include "fr_util.h"
@@ -29,11 +30,11 @@ int main(int argc, char **argv) {
   srand(time(NULL));
 
   //uint64_t num_addresses_tested = (TABLE_SIZE*4)/CACHE_LINESIZE;
-  double hit_rate[TXT_BYTES][256];
+  std::pair<double, unsigned int> hit_rate[TXT_BYTES][256];
 
   for (int i = 0; i < 16; ++i) {
     for (int ii = 0; ii < 256; ++ii) {
-      hit_rate[i][ii] = 0;
+      hit_rate[i][ii] = {0, ii};
     }
   }
 
@@ -242,7 +243,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < 16; ++i) {
     for (int ii = 0; ii < 256; ++ii) {
       //printf("BYTE %d at POSITION %d: HIT RATE %f HITS: %u ENCS: %lu\n", ii, i, (double) hits_per_byte[i*256 + ii]/encryptions_per_byte[i*256 + ii], hits_per_byte[i*256 + ii], encryptions_per_byte[i*256 + ii]);
-      hit_rate[i][ii] = (double) hits_per_byte[i*256 + ii]/encryptions_per_byte[i*256 + ii];
+      hit_rate[i][ii] = {(double) hits_per_byte[i*256 + ii]/encryptions_per_byte[i*256 + ii], ii};
     }
   }
 
@@ -251,16 +252,18 @@ int main(int argc, char **argv) {
 
   //get 16 maximum hit rate candidates for each ciphertext position
   for (int pos = 0; pos < TXT_BYTES; ++pos) {
-    std::sort(hit_rate[pos], hit_rate[pos] + 256);
+    std::sort(hit_rate[pos], hit_rate[pos] + 256, [](const std::pair<double, unsigned int>& a, const std::pair<double, unsigned int>& b) {
+            return a.first < b.first;
+        });
     printf("sorted!");
     for (int byte = 0; byte < 256; ++byte) {
-      printf("%f ", hit_rate[pos][byte]);
+      printf("%f ", hit_rate[pos][byte].first);
     }
     printf(" end\n\n\n");
 
     printf("--- Top 16 candidates for position %d---\n", pos);
     for (int top = 255; top > (255 - TXT_BYTES); --top) {
-      printf("%d ", (int) hit_rate[pos][top] ^ 99);
+      printf("%u ", hit_rate[pos][top].second);
     }
 
     printf("\n\n\n");
