@@ -42,7 +42,7 @@ CYCLES maccess_t(ADDR_PTR addr)
   // which is sandwiched between two rdtscp instructions.
   // Calculate the latency using difference of the output of two rdtscps.
 
-  //Serialize instruction stream with lfence instructions
+  //Serialize instruction stream with mfence instructions
 
   CYCLES cycles;
   CYCLES new_time;
@@ -51,21 +51,29 @@ CYCLES maccess_t(ADDR_PTR addr)
   //prev timestamp now in temp
 
 
-  asm volatile("lfence"
+  asm volatile("mfence"
     : /*output*/
     : /*input*/
     : /*clobbers*/ "memory" );
   old = rdtscp();
+  asm volatile("mfence"
+  : /*output*/
+  : /*input*/
+  : /*clobbers*/ "memory" );
 
   maccess(addr);
 
-  asm volatile("lfence"
+  asm volatile("mfence"
       : /*output*/
       : /*input*/
       : /*clobbers*/ "memory" );
 
   //newer timestamp in cycles
   new_time = rdtscp();
+  asm volatile("mfence"
+  : /*output*/
+  : /*input*/
+  : /*clobbers*/ "memory" );
 
   //overflow protection
   cycles = ((int64_t) new_time) - ((int64_t) old);
