@@ -71,5 +71,4 @@ histogram
 libcrypto.so.1.1
 
 #subrepos
-cs.7292.hwsecurity.lab2.FR.CC/
-histogram-generator/
+graphs/histogram-generator/

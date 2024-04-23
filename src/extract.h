@@ -4,7 +4,7 @@
 #define AES_KEY_SIZE (128)
 
 //number of encryptions to observe
-#define n_enc (90000)
+#define n_enc (17000)
 
 //bytes in plaintext, 128 bits
 #define TXT_BYTES (16)

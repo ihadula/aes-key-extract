@@ -6,7 +6,7 @@ extern "C" {
 #include <time.h>
 #include <stdio.h>
 
-#define n_tests (3)
+#define n_tests (750)
 
 int main(int argc, char **argv) {
     srand(rdtscp());
@@ -40,18 +40,17 @@ int main(int argc, char **argv) {
         | ((__uint128_t) rand_key[11] << 32) | ((__uint128_t) rand_key[12] << 24) | ((__uint128_t) rand_key[13] << 16) | ((__uint128_t) rand_key[14] << 8) | rand_key[15];
 
 
-        // calculate bit level accuracy
+        // calculate hex digit level accuracy
         uint32_t num_correct = 0;
-        for (int i = 0; i < AES_KEY_SIZE; ++i) {
-            uint8_t bit_expected = (rand_key_128 & (1 << i)) >> i;
-            uint8_t bit_actual = (aes_key & (1 << i)) >> i;
+        for (int i = 0; i < AES_KEY_SIZE; i += 4) {
+            uint8_t digit_expected = (rand_key_128 >> i) & 0xf;
+            uint8_t digit_actual = (aes_key >> i) & 0xf;
 
-            if (bit_actual == bit_expected) {
+            if (digit_actual == digit_expected) {
                 ++num_correct;
             }
         }
-
-        double accuracy = num_correct / AES_KEY_SIZE;
+        double accuracy = (double) num_correct / (AES_KEY_SIZE / 4);
         accuracy *= 100;
         mean += accuracy;
         printf("Accuracy for this run: %f%%\n", accuracy);
@@ -60,6 +59,17 @@ int main(int argc, char **argv) {
     printf("--------------------\n\n");
     printf("Tests complete!\n");
     printf("Total average accuracy for AES key extraction: %f%%\n", mean);
+
+    //write results of this run to a csv for graph generation
+    FILE *file = fopen("test_runs.csv", "a"); 
+    if (file == NULL) {
+        perror("Failed to open file");
+        return 1;
+    }
+
+    fprintf(file, "%u,%f\n", n_enc, mean);
+
+    fclose(file);
 
     return 0;
 }
