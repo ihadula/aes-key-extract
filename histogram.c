@@ -1,5 +1,7 @@
 #include "fr_util.h"
 
+//this code's skeleton is from https://github.gatech.edu/gsaileshwar3/cs.7292.hwsecurity.lab2.FR.CC written for Georgia Tech CS 7292
+
 //**************************
 // ADJUST THESE PARAMETERS IF NEEDED
 //**************************

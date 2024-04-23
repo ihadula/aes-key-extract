@@ -418,16 +418,3 @@ __uint128_t extract(const unsigned char *key) {
   return aes_key;
   
 }
-
-int main(int argc, char **argv) {
-  //key init, something easy to check for now
-  //for the purposes of this experiment, we can fix key size at 128 for now
-  const unsigned char key[] =
-  {
-    0xfa, 0xfb, 0xfc, 0x00, 0xfe, 0xff, 0xfa, 0xfb,
-    0xfc, 0x00, 0xfe, 0xff, 0xfa, 0xfb, 0xfc, 0xfd,
-  };
-
-  extract(key);
-  return 0;
-}
