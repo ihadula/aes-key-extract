@@ -1,3 +1,6 @@
+/* extract logic with no single key extraction mode for testing / experiments
+*/
+
 #include <stdio.h>
 #include <openssl/aes.h>
 #include <stdlib.h>

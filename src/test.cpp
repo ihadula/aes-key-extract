@@ -6,11 +6,13 @@ extern "C" {
 #include <time.h>
 #include <stdio.h>
 
+// change to your liking
 #define n_tests (750)
 
 int main(int argc, char **argv) {
     srand(rdtscp());
-    double mean = 0;
+    double mean_a = 0;
+    double mean_c = 0;
 
     for (int t = 0; t < n_tests; ++t) {
         
@@ -50,26 +52,44 @@ int main(int argc, char **argv) {
                 ++num_correct;
             }
         }
+
+        //if key successfully extracted
+        if (num_correct == (AES_KEY_SIZE / 4)) {
+            ++mean_c;
+        }
+
         double accuracy = (double) num_correct / (AES_KEY_SIZE / 4);
         accuracy *= 100;
-        mean += accuracy;
+        mean_a += accuracy;
         printf("Accuracy for this run: %f%%\n", accuracy);
     }
-    mean /= n_tests;
-    printf("--------------------\n\n");
-    printf("Tests complete!\n");
-    printf("Total average accuracy for AES key extraction: %f%%\n", mean);
+    mean_a /= n_tests;
+    mean_c /= n_tests;
+    mean_c *= 100;
 
-    //write results of this run to a csv for graph generation
-    FILE *file = fopen("test_runs.csv", "a"); 
-    if (file == NULL) {
+    printf("--------------------\n\n");
+    printf("Tests complete!\n\n");
+    printf("Total average accuracy for AES key extraction: %f%%\n", mean_a);
+    printf("Percentage of keys fully extracted correctly: %f%%\n", mean_c);
+
+    //write results of runs to a csv files for graph generation
+    FILE *file_a = fopen("test_accuracy.csv", "a"); 
+    if (file_a == NULL) {
         perror("Failed to open file");
         return 1;
     }
 
-    fprintf(file, "%u,%f\n", n_enc, mean);
+    FILE *file_c = fopen("test_correct.csv", "a"); 
+    if (file_c == NULL) {
+        perror("Failed to open file");
+        return 1;
+    }
 
-    fclose(file);
+    fprintf(file_a, "%u,%f\n", n_enc, mean_a);
+    fprintf(file_c, "%u,%f\n", n_enc, mean_c);
+
+    fclose(file_a);
+    fclose(file_c);
 
     return 0;
 }

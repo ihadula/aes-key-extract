@@ -69,6 +69,7 @@ aeslib.txt
 extract
 histogram
 libcrypto.so.1.1
+test
 
 #subrepos
 graphs/histogram-generator/

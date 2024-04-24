@@ -1,3 +1,6 @@
+/* single key extraction available in this mode
+*/
+
 #include <stdio.h>
 #include <openssl/aes.h>
 #include <stdlib.h>
@@ -203,7 +206,7 @@ __uint128_t extract(const unsigned char *key) {
         if (test_addr > end) {
           printf("accessing past boundaries of AES program... not good\n");
 
-          //scuffed way to throw an error (since any number value of aes_key return val could be valid) without generating a compiler exception
+          //scuffed way to throw an error (since any number value of aes_key return val could be valid) without generating a compiler warning
           volatile int x = 0;
           return 16/x;
         }

@@ -7,7 +7,7 @@
 
 HEADER="extract.h"
 
-for (( i= 4000; i <  17500; i += 500))
+for (( i= 3500; i <  30500; i += 500))
 do
     sed -i "/#define n_enc/c\#define n_enc ($i)" $HEADER
     make || exit
